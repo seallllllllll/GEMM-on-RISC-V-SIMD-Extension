@@ -53,7 +53,6 @@ class Processor extends Module {
     val instruction = Output(UInt(32.W))
     val pc = Output(SInt(32.W))
     val debug = new DebugModule()
-
   })
 
   object InstructionType {
@@ -258,7 +257,7 @@ class Processor extends Module {
     when(id_ex.instructionType === InstructionType.BEQ){
       vectorALUs(i).in2 :=  id_ex.rs2_data(i)
     } .elsewhen(id_ex.instructionType === InstructionType.VSTORE){
-      vectorALUs(i).in2 :=  0.S
+      vectorALUs(i).in2 := id_ex.immediate(i)
     }.elsewhen (id_ex.isImmediate) {
       vectorALUs(i).in2 := id_ex.immediate(i)
     } .otherwise {
@@ -276,6 +275,7 @@ class Processor extends Module {
     for (i <- 0 until 8) {
       dmem_addresses(i) := (base_addr >> 2) + i.U
     }
+    ex_mem.dmem_addresses := dmem_addresses
   }
   .otherwise {
     dmem_addresses := VecInit(Seq.fill(8)(0.U))
@@ -430,6 +430,8 @@ when(ex_mem.memWrite) {
   io.debug.mem_stage.memAddresses := ex_mem.dmem_addresses
   io.debug.mem_stage.memRead := ex_mem.memRead
   io.debug.mem_stage.memWrite := ex_mem.memWrite
+  io.debug.mem_stage.baseAddr0 := ex_mem.dmem_addresses(0)
+
 
   io.debug.wb_stage.rd := mem_wb.rd
   io.debug.wb_stage.regWrite := mem_wb.regWrite

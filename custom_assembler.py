@@ -38,11 +38,17 @@ def encode_register(register):
 
 def parse_assembly_line(line):
     """Parse a single line of assembly code."""
+    #ex: addi x1, x2, -5
+    #tokens = ["addi", "x1", "x2", "-5"]
+    #instruction = "addi"
+    #operands = ["x1", "x2", "-5"]
+    
     tokens = re.split(r"[,\s]+", line.strip())
     instruction = tokens[0]
     operands = tokens[1:]
     return instruction, operands
 
+# Convert an instruction into 32-bit binary
 def encode_instruction(instruction, operands):
     """Encode an instruction to machine code."""
     if instruction not in INSTRUCTION_SET:
@@ -61,7 +67,11 @@ def encode_instruction(instruction, operands):
         rs2 = encode_register(operands[2])
         binary = f"{funct7}{rs2}{rs1}{funct3}{rd}{opcode}"
 
-
+    # Special case: vload uses the memory address format
+    # ex: vload v0, 16(x1)
+    # operands[0] = v0 → rd
+    # operands[1] = 16(x1) → offset = 16, base = x1
+    # imm = 16 → 12-bit
     elif instr_type == "I" and instruction in ["vload"]:
         offset, base = re.match(r"(\d+)\((x\d+)\)", operands[1]).groups()
         rd = encode_register(operands[0])
@@ -71,6 +81,7 @@ def encode_instruction(instruction, operands):
         binary = f"{imm_bin}{rs1}{funct3}{rd}{opcode}"
 
     # imm[11:0] rs1 funct3 rd opcode I-type
+    # ex: addi x1, x2, -5
     elif instr_type == "I":
         rd = encode_register(operands[0])
         rs1 = encode_register(operands[1])
@@ -80,6 +91,7 @@ def encode_instruction(instruction, operands):
         binary = f"{imm_bin}{rs1}{funct3}{rd}{opcode}"
 
     # imm[11:5] rs2 rs1 funct3 imm[4:0] opcode S-type
+    # ex: vstore
     elif instr_type == "S":
         offset, base = re.match(r"(\d+)\((x\d+)\)", operands[1]).groups()
         rs1 = encode_register(base)
@@ -92,6 +104,7 @@ def encode_instruction(instruction, operands):
         binary = f"{imm_high}{rs2}{rs1}{funct3}{imm_low}{opcode}"
 
     # imm[12|10:5] rs2 rs1 funct3 imm[4:1|11] opcode B-type
+    # ex: beq x1, x2, 16
     elif instr_type == "B":
         rs1 = encode_register(operands[0])
         rs2 = encode_register(operands[1])
@@ -105,6 +118,7 @@ def encode_instruction(instruction, operands):
         binary = f"{imm_high}{imm_mid}{rs2}{rs1}{funct3}{imm_low}{imm_low2}{opcode}"
     
     # imm[20|10:1|11|19:12] rd opcode J-type
+    # ex: j 128
     elif instr_type == "J":
         rd = "00000"
         imm = int(operands[0])
@@ -121,7 +135,8 @@ def encode_instruction(instruction, operands):
         raise ValueError(f"Unsupported instruction type: {instr_type}")
 
     return binary
-
+    
+# Process the entire assembly string line by line
 def assemble(assembly_code):
     """Convert assembly code to machine code."""
     machine_code = []
@@ -135,6 +150,8 @@ def assemble(assembly_code):
             machine_code.append(encode_instruction(instruction, operands))
     return machine_code
 
+# input.asm: an assembly language program
+# output.hex: the output filename (default = out.hex)
 if __name__ == "__main__":
     if len(sys.argv) not in [2, 4]:
         print("Usage: python assembler.py <assembly_file> [-o <output_file>]")

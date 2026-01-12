@@ -10,9 +10,11 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
       c.reset.poke(true.B)
       c.clock.step(1)
       c.reset.poke(false.B)
+      
+      val rows = collection.mutable.ArrayBuffer[Seq[BigInt]]()
 
       
-      for (i <- 0 until 35) {
+      for (i <- 0 until 30) {
         println("\n" + "="*25 + s" Cycle $i " + "="*25)
         
         // IF Stage
@@ -35,17 +37,40 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
         println(s"ALU Results: [${(0 until 8).map(i => c.io.debug.ex_stage.aluResults(i).peek().litValue).mkString(", ")}]")
         
         // MEM Stage
+        /*
         println("\nMEM Stage:")
         println(s"memRead = ${c.io.debug.mem_stage.memRead.peek().litValue}")
         println(s"memWrite = ${c.io.debug.mem_stage.memWrite.peek().litValue}")
         println(s"Memory Addresses: [${(0 until 8).map(i => c.io.debug.mem_stage.memAddresses(i).peek().litValue).mkString(", ")}]")
+        */
         
+        println(s"\nMEM Stage:")
+        println(s"memRead = ${c.io.debug.mem_stage.memRead.peekInt()}")
+        println(s"memWrite = ${c.io.debug.mem_stage.memWrite.peekInt()}")
+        println(s"Memory Addresses: ${c.io.debug.mem_stage.memAddresses.map(_.peekInt()).mkString("[", ", ", "]")}")
+        
+        println(s"MEM baseAddr0 = ${c.io.debug.mem_stage.baseAddr0.peekInt()}")
+
+
+                
         // WB Stage
         println("\nWB Stage:")
         println(s"rd = x${c.io.debug.wb_stage.rd.peek().litValue}")
         println(s"regWrite = ${c.io.debug.wb_stage.regWrite.peek().litValue}")
         println(s"Write Data: [${(0 until 8).map(i => c.io.debug.wb_stage.writeData(i).peek().litValue).mkString(", ")}]")
+        
+        def dumpVecMatrix(c: Processor): Unit = {
+          println("\nVector-as-Matrix (8x8) view (x9..x16):")
+          for (r <- 0 until 8) {
+            val row = (0 until 8).map(j => c.io.debug.vectorRegs(r)(j).peek().litValue)
+            println(row.mkString("[", ", ", "]"))
+          }
+        }
+        
+        dumpVecMatrix(c)
 
+        c.clock.step(1)
+        
         // Register State after this cycle
         println("\nRegister State:")
         println("Scalar Registers (x1-x8):")
@@ -57,10 +82,8 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
           println(s"x${i+9} = [${(0 until 8).map(j => c.io.debug.vectorRegs(i)(j).peek().litValue).mkString(", ")}]")
         }
 
-        c.clock.step(1)
+        
       }
-
-
     }
   }
 }
