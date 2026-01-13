@@ -21,10 +21,10 @@ class DebugModule extends Bundle {
     val aluResults = Output(Vec(8, SInt(32.W)))
   }
   val mem_stage = new Bundle {
-    val memAddresses = Output(UInt(32.W))
+    val memAddresses = Output(Vec(8, UInt(32.W)))
     val memRead = Output(Bool())
     val memWrite = Output(Bool())
-    val baseAddr0 = UInt(32.W)
+    val baseAddr0 = Output(UInt(32.W))  // MEM real base addr (lane0)
 
   }
   val wb_stage = new Bundle {

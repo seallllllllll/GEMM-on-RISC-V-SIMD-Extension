@@ -52,7 +52,7 @@ class Processor extends Module {
   val io = IO(new Bundle {
     val instruction = Output(UInt(32.W))
     val pc = Output(SInt(32.W))
-    val debug = new DebugModule()
+    val debug = (new DebugModule())
   })
 
   object InstructionType {

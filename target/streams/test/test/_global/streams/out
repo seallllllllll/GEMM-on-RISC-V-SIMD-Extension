@@ -1,23 +1,11 @@
-[0m[[0m[0mdebug[0m] [0m[0mRunning TaskDef(simd.ProcessorTester, org.scalatest.tools.Framework$$anon$1@1c301f1a, false, [SuiteSelector])[0m
+[0m[[0m[0mdebug[0m] [0m[0mRunning TaskDef(simd.ProcessorTester, org.scalatest.tools.Framework$$anon$1@44f044b5, false, [SuiteSelector])[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mProcessorTester:[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mProcessor[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m- should run *** FAILED ***[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  chisel3.package$MixedDirectionAggregateException: Aggregate 'Processor.io_mem_stage: IO[AnonymousBundle]' can't have elements that are both directioned and undirectioned: Vector((Processor.io_baseAddr0: IO[UInt<32>],Unspecified), (Processor.io_memWrite: IO[Bool],Output), (Processor.io_memRead: IO[Bool],Output), (Processor.io_memAddresses: IO[UInt<32>[8]],Output))[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at ... ()[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at simd.Processor.$anonfun$io$2(Processor.scala:52)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at chisel3.internal.prefix$.apply(prefix.scala:48)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at simd.Processor.$anonfun$io$1(Processor.scala:52)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at chisel3.internal.plugin.package$.autoNameRecursively(package.scala:33)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at simd.Processor.<init>(Processor.scala:52)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at simd.ProcessorTester.$anonfun$new$2(ProcessorTester.scala:9)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at ... ()[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  at ... (Stack trace trimmed to user code only. Rerun with --full-stacktrace to see the full stack trace)[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m  ...[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[36mRun completed in 483 milliseconds.[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[32m- should run[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[36mRun completed in 4 seconds, 669 milliseconds.[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[36mTotal number of tests run: 1[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[36mSuites: completed 1, aborted 0[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[36mTests: succeeded 0, failed 1, canceled 0, ignored 0, pending 0[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[31m*** 1 TEST FAILED ***[0m[0m
-[0m[[0m[31merror[0m] [0m[0mFailed tests:[0m
-[0m[[0m[31merror[0m] [0m[0m	simd.ProcessorTester[0m
-[0m[[0m[31merror[0m] [0m[0m(Test / [31mtest[0m) sbt.TestsFailedException: Tests unsuccessful[0m
+[0m[[0m[0minfo[0m] [0m[0m[36mTests: succeeded 1, failed 0, canceled 0, ignored 0, pending 0[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[32mAll tests passed.[0m[0m
+[0m[[0m[0mdebug[0m] [0m[0mPassed tests:[0m
+[0m[[0m[0mdebug[0m] [0m[0m	simd.ProcessorTester[0m

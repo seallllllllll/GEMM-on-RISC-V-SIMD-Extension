@@ -30,7 +30,7 @@ def encode_register(register):
     elif register[0]=="x":
         return f"{int(register[1:]):05b}"
     elif register[0]=="v":
-        return f"{int(register[1:])+8:05b}"
+        return f"{int(register[1:])+9:05b}"
     elif isinstance(register, int):
         return int(register)
     else:

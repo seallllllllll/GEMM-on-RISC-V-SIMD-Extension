@@ -116,6 +116,10 @@ The processor supports a basic vector array of 8 lanes and demonstrates SIMD ope
      ```bash
      python assembler.py <assembly_file> [-o <output_file>]
      // use python3 for macOS
+     // python3 custom_assembler.py add8x8.s -o inst.hex
+     // cp inst.hex ~/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+     // python3 gen_data_hex.py /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+     // cp data.hex /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/data.hex
      ```
 
 

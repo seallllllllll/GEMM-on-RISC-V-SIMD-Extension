@@ -14,7 +14,7 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
       val rows = collection.mutable.ArrayBuffer[Seq[BigInt]]()
 
       
-      for (i <- 0 until 30) {
+      for (i <- 0 until 100) {
         println("\n" + "="*25 + s" Cycle $i " + "="*25)
         
         // IF Stage
@@ -37,20 +37,11 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
         println(s"ALU Results: [${(0 until 8).map(i => c.io.debug.ex_stage.aluResults(i).peek().litValue).mkString(", ")}]")
         
         // MEM Stage
-        /*
         println("\nMEM Stage:")
         println(s"memRead = ${c.io.debug.mem_stage.memRead.peek().litValue}")
         println(s"memWrite = ${c.io.debug.mem_stage.memWrite.peek().litValue}")
         println(s"Memory Addresses: [${(0 until 8).map(i => c.io.debug.mem_stage.memAddresses(i).peek().litValue).mkString(", ")}]")
-        */
-        
-        println(s"\nMEM Stage:")
-        println(s"memRead = ${c.io.debug.mem_stage.memRead.peekInt()}")
-        println(s"memWrite = ${c.io.debug.mem_stage.memWrite.peekInt()}")
-        println(s"Memory Addresses: ${c.io.debug.mem_stage.memAddresses.map(_.peekInt()).mkString("[", ", ", "]")}")
-        
-        println(s"MEM baseAddr0 = ${c.io.debug.mem_stage.baseAddr0.peekInt()}")
-
+        println(s"MEM baseAddr0 = ${c.io.debug.mem_stage.baseAddr0.peek().litValue}")
 
                 
         // WB Stage
