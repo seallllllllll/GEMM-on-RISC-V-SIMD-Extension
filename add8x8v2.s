@@ -1,6 +1,10 @@
 addi x1, x0, 0
 addi x2, x0, 256
 addi x3, x0, 512
+nop
+nop
+nop
+nop
 
 # v8/v9 for load buffer，v0..v7 get result（with x9..x16）
 

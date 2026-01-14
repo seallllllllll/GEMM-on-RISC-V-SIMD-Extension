@@ -2,8 +2,7 @@ package simd
 
 import chisel3._
 import chisel3.util._
-
-
+import chisel3.util.log2Ceil
 
 
 class IF_ID extends Bundle {
@@ -78,6 +77,7 @@ class Processor extends Module {
 
   val scalarRegfile = Reg(Vec(9, SInt(32.W)))  // 9 elements (0-8)
   val vectorRegfile = Mem(23, Vec(8, SInt(32.W))) // 23 vector registers (9-31)
+
 
 
   // Fetch stage
@@ -204,10 +204,15 @@ class Processor extends Module {
       printf(p"Immediate value: ${imm}\n")
       immediate := VecInit(Seq.fill(8)(imm))
       
-  }
-
-
-
+  
+  }.elsewhen(instructionType === InstructionType.VSTORE) {
+      // S-type immediate: imm[11:5]=inst[31:25], imm[4:0]=inst[11:7]
+      val imm11_5 = if_id.instruction(31, 25)
+      val imm4_0  = if_id.instruction(11, 7)
+      val immS12  = Cat(imm11_5, imm4_0)                 // 12 bits
+      val immS    = Cat(Fill(20, immS12(11)), immS12).asSInt // sign-extend to 32
+      immediate := VecInit(Seq.fill(8)(immS))
+    }
 
   // RS1 read logic
   when(rs1 >= 9.U) {
@@ -270,10 +275,18 @@ class Processor extends Module {
 
   val base_addr = vector_alu_result(0).asUInt()
   val dmem_addresses = Wire(Vec(8, UInt(32.W)))
+  val memSize = 1024
+  val addrWidth = log2Ceil(memSize)
+  val base_word_index = id_ex.rs1_data(0).asUInt
+  val imm_word_offset = id_ex.immediate(0).asUInt
+
 
   when(id_ex.isVector) {
     for (i <- 0 until 8) {
-      dmem_addresses(i) := (base_addr >> 2) + i.U
+      // dmem_addresses(i) := (base_addr >> 2) + i.U
+      dmem_addresses(i) := ((base_addr >> 2) + i.U)(addrWidth-1, 0)
+      // dmem_addresses(i) := (base_word_index + imm_word_offset + i.U)(addrWidth-1, 0)
+
     }
     ex_mem.dmem_addresses := dmem_addresses
   }
@@ -292,6 +305,9 @@ class Processor extends Module {
   dataMemory.io.dataIn := VecInit(Seq.fill(8)(0.S))
   dataMemory.io.addr := VecInit(Seq.fill(8)(0.U))
   val mem_data = Wire(Vec(8, SInt(32.W)))
+  
+  dataMemory.io.dbgAddr := io.debug.dmemDbgAddr
+  io.debug.dmemDbgData := dataMemory.io.dbgData
 
 
 

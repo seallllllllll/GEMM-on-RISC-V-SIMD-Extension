@@ -9,6 +9,10 @@ class DebugModule extends Bundle {
     val pc = Output(SInt(32.W))
     val instruction = Output(UInt(32.W))
   }
+    // Tester：read which word index
+    val dmemDbgAddr = Input(UInt(10.W))     // 1024 words => 10 bits
+    val dmemDbgData = Output(SInt(32.W))    // return the word
+
   val id_stage = new Bundle {
     val opcode = Output(UInt(7.W))
     val rd = Output(UInt(5.W))

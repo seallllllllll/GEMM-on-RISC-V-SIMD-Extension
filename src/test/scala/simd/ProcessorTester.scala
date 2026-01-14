@@ -3,8 +3,10 @@ package simd
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
+import scala.io.Source
 
 class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
+    
   "Processor" should "run" in {
     test(new Processor) { c =>
       c.reset.poke(true.B)
@@ -75,6 +77,38 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
 
         
       }
+      // ===== Added: Golden C compare =====
+        def readHexFile(path: String): Seq[BigInt] = {
+          val src = Source.fromFile(path)
+          try {
+            src.getLines()
+              .map(_.trim)
+              .filter(l => l.nonEmpty && !l.startsWith("#"))
+              .map(l => BigInt(l, 16))
+              .toSeq
+          } finally src.close()
+        }
+
+        val golden = readHexFile("golden_C.hex")
+        require(golden.length == 64, s"golden_C.hex must have 64 lines, got ${golden.length}")
+
+        val cBase = 128 // word index = 512 bytes / 4
+        val actual = (0 until 64).map { i =>
+          c.io.debug.dmemDbgAddr.poke((cBase + i).U)
+          c.clock.step(1) // if dbg read not combinational
+          c.io.debug.dmemDbgData.peek().litValue
+        }
+
+        for (i <- 0 until 64) {
+          assert(
+            actual(i) == golden(i),
+            f"\n mismatch @word[${i}%d] (mem[${cBase + i}%d]): \nexpected=0x${golden(i)}%08X \nactual=0x${actual(i)}%08X"
+          )
+        }
+
+        println("\nPASS: C matches golden_C.hex")
+        // ===== End: Golden C compare =====
+        
     }
   }
 }
