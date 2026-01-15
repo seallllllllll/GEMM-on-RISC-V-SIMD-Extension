@@ -1,3 +1,13 @@
+/*
+Test spec:
+- A matrix: mem[0..63]
+- B matrix: mem[64..127]
+- C matrix: mem[128..191]
+- Correctness is defined ONLY by C memory content
+- Vector registers are scratch, not architectural state
+*/
+
+
 package simd
 
 import chisel3._
@@ -15,8 +25,9 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
       
       val rows = collection.mutable.ArrayBuffer[Seq[BigInt]]()
 
+
       
-      for (i <- 0 until 100) {
+      for (i <- 0 until 300) {
         println("\n" + "="*25 + s" Cycle $i " + "="*25)
         
         // IF Stage
@@ -31,6 +42,9 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
         println(s"rs1 = x${c.io.debug.id_stage.rs1.peek().litValue}")
         println(s"rs2 = x${c.io.debug.id_stage.rs2.peek().litValue}")
         println(s"imm = ${c.io.debug.id_stage.immediate.peek().litValue}")
+        println(s"funct3 = ${c.io.debug.id_stage.funct3.peek().litValue}")
+        println(s"funct7 = ${c.io.debug.id_stage.funct7.peek().litValue}")
+        println(s"aluOp  = ${c.io.debug.id_stage.aluOp.peek().litValue}")
 
 
 
@@ -74,9 +88,9 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
         for (i <- 0 to 3) {
           println(s"x${i+9} = [${(0 until 8).map(j => c.io.debug.vectorRegs(i)(j).peek().litValue).mkString(", ")}]")
         }
-
-        
       }
+      
+      /*
       // ===== Added: Golden C compare =====
         def readHexFile(path: String): Seq[BigInt] = {
           val src = Source.fromFile(path)
@@ -88,27 +102,59 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
               .toSeq
           } finally src.close()
         }
+        
+        val A = (0 until 64).map(i => peekMem(i))
+        val B = (0 until 64).map(i => peekMem(64 + i))
 
         val golden = readHexFile("golden_C.hex")
         require(golden.length == 64, s"golden_C.hex must have 64 lines, got ${golden.length}")
 
         val cBase = 128 // word index = 512 bytes / 4
-        val actual = (0 until 64).map { i =>
-          c.io.debug.dmemDbgAddr.poke((cBase + i).U)
-          c.clock.step(1) // if dbg read not combinational
+        
+        */
+        
+        
+        // ===== VMUL OUT compare (C = A .* B) =====
+        def peekMem(wordAddr: Int): BigInt = {
+          c.io.debug.dmemDbgAddr.poke(wordAddr.U)
+          c.clock.step(1) // keep if dbg read is registered
           c.io.debug.dmemDbgData.peek().litValue
         }
 
-        for (i <- 0 until 64) {
-          assert(
-            actual(i) == golden(i),
-            f"\n mismatch @word[${i}%d] (mem[${cBase + i}%d]): \nexpected=0x${golden(i)}%08X \nactual=0x${actual(i)}%08X"
-          )
+        // get A / B
+        val A = (0 until 64).map(i => peekMem(i))
+        val B = (0 until 64).map(i => peekMem(64 + i))
+
+        val cBase     = 128 // C base = 512 bytes => word index 128
+        val actualC   = (0 until 64).map(i => peekMem(cBase + i))
+        val expectedC = (0 until 64).map(i => A(i) * B(i))
+
+        expectedC.zip(actualC).zipWithIndex.foreach { case ((e, a), idx) =>
+          assert(a == e, s"mismatch @C[$idx] (mem[${cBase + idx}]): expected=$e actual=$a")
         }
 
-        println("\nPASS: C matches golden_C.hex")
-        // ===== End: Golden C compare =====
+        println("\nPASS: C[0..63] matches element-wise A*B")
+        // ===== End compare =====
         
+        def dumpCMemoryMatrix(cBase: Int): Unit = {
+          println("\nC memory as Matrix (8x8):")
+          for (r <- 0 until 8) {
+            val row = (0 until 8).map { c =>
+              peekMem(cBase + r*8 + c)
+            }
+            println(row.mkString("[", ", ", "]"))
+          }
+        }
+
+    
+
+
+
+        dumpCMemoryMatrix(128)
+
     }
+
+
+    
   }
 }

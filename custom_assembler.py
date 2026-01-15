@@ -6,6 +6,7 @@ INSTRUCTION_SET = {
     "vload": {"type": "I", "opcode": "1111111", "funct3": "000"}, 
     "vstore": {"type": "S", "opcode": "1000000", "funct3": "000"},
     "vadd": {"type": "R", "opcode": "0110011", "funct3": "111", "funct7": "1111111"},
+    "vmul": {"type": "R", "opcode": "0110011", "funct3": "111", "funct7": "1111110"},
     "beq": {"type": "B", "opcode": "1100011", "funct3": "000"},
     "j": {"type": "J", "opcode": "1101111"},
 

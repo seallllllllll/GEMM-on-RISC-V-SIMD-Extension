@@ -55,13 +55,14 @@ class Processor extends Module {
   })
 
   object InstructionType {
-    val ADDI = 0.U
-    val VADD = 1.U
-    val VLOAD = 2.U
-    val VSTORE = 3.U
-    val BEQ = 4.U
-    val J = 5.U
-    val NOP = 6.U
+      val ADDI = 0.U
+      val VADD = 1.U
+      val VMUL = 2.U
+      val VLOAD = 3.U
+      val VSTORE = 4.U
+      val BEQ = 5.U
+      val J = 6.U
+      val NOP = 7.U
   }
   
   val if_id = RegInit(0.U.asTypeOf(new IF_ID))
@@ -117,6 +118,7 @@ class Processor extends Module {
         memRead := false.B
         memWrite := false.B
     }
+    /*
     is("b0110011".U) { // Custom opcode for vadd
         instructionType := InstructionType.VADD
         isImmediate := false.B
@@ -125,7 +127,35 @@ class Processor extends Module {
         isVector := true.B
         memRead := false.B
         memWrite := false.B
-   }
+   }*/
+   is("b0110011".U) { // SIMD R-type (vadd / vmul)
+      when(funct3 === "b111".U && funct7 === "b1111111".U) {
+            instructionType := InstructionType.VADD
+            isImmediate := false.B
+            aluOp := 5.U            // vadd op
+            regWrite := true.B
+            isVector := true.B
+            memRead := false.B
+            memWrite := false.B
+          }.elsewhen(funct3 === "b111".U && funct7 === "b1111110".U) {
+            instructionType := InstructionType.VMUL
+            isImmediate := false.B
+            aluOp := 6.U            // vmul ALU op code
+            regWrite := true.B
+            isVector := true.B
+            memRead := false.B
+            memWrite := false.B
+          }.otherwise {
+            instructionType := InstructionType.NOP
+            isImmediate := false.B
+            regWrite := false.B
+            memRead := false.B
+            memWrite := false.B
+            aluOp := 0.U
+            isVector := false.B
+          }
+    }
+
     is("b1000000".U) { // Custom opcode for vstore
       instructionType := InstructionType.VSTORE
       isImmediate := false.B
@@ -437,6 +467,9 @@ when(ex_mem.memWrite) {
   io.debug.id_stage.rd := if_id.instruction(11,7)
   io.debug.id_stage.rs1 := if_id.instruction(19,15)
   io.debug.id_stage.rs2 := if_id.instruction(24,20)
+  io.debug.id_stage.funct3 := funct3
+  io.debug.id_stage.funct7 := funct7
+  io.debug.id_stage.aluOp  := aluOp
   io.debug.id_stage.immediate := id_ex.immediate(0)
   io.debug.id_stage.instructionType := instructionType
   
