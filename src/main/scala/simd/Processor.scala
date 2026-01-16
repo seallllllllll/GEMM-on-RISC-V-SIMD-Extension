@@ -13,7 +13,8 @@ class ID_EX extends Bundle {
   val rs1_data = Vec(8, SInt(32.W))
   val rs2_data = Vec(8, SInt(32.W))
   val immediate = Vec(8, SInt(32.W))
-  val instructionType = UInt(3.W)
+  // Needs 4 bits because we added VSPLAT (=8)
+  val instructionType = UInt(4.W)
   val rd = UInt(5.W)
   val opcode = UInt(7.W)
   val memRead = Bool()
@@ -55,14 +56,16 @@ class Processor extends Module {
   })
 
   object InstructionType {
-      val ADDI = 0.U
-      val VADD = 1.U
-      val VMUL = 2.U
-      val VLOAD = 3.U
-      val VSTORE = 4.U
-      val BEQ = 5.U
-      val J = 6.U
-      val NOP = 7.U
+      // Use an explicit 4-bit encoding because we have >8 instruction types.
+      val ADDI   = 0.U(4.W)
+      val VADD   = 1.U(4.W)
+      val VMUL   = 2.U(4.W)
+      val VLOAD  = 3.U(4.W)
+      val VSTORE = 4.U(4.W)
+      val BEQ    = 5.U(4.W)
+      val J      = 6.U(4.W)
+      val NOP    = 7.U(4.W)
+      val VSPLAT = 8.U(4.W)
   }
   
   val if_id = RegInit(0.U.asTypeOf(new IF_ID))
@@ -70,8 +73,8 @@ class Processor extends Module {
   val ex_mem = RegInit(0.U.asTypeOf(new EX_MEM)) 
   val mem_wb = RegInit(0.U.asTypeOf(new MEM_WB))
 
-  val dataMemory = Module(new DataMemory(1024)) 
-  val instructionMemory = Module(new InstructionMemoryLoader(1024, "./src/main/resources/inst.hex"))
+  val dataMemory = Module(new DataMemory(4096)) 
+  val instructionMemory = Module(new InstructionMemoryLoader(4096, "./src/main/resources/inst.hex"))
 
   val instructionType = WireDefault(InstructionType.NOP)
   
@@ -114,7 +117,7 @@ class Processor extends Module {
         isImmediate := true.B
         aluOp := 0.U // ADD
         regWrite := true.B
-        isVector := false.B 
+        isVector := false.B
         memRead := false.B
         memWrite := false.B
     }
@@ -183,6 +186,15 @@ class Processor extends Module {
       aluOp := 0.U
       isVector := true.B
     }
+    is("b1010101".U) {  // Custom opcode for vsplat
+      instructionType := InstructionType.VSPLAT
+      isImmediate := true.B      // lane index in immediate (0..7)
+      regWrite := true.B         // write back to a vector register
+      memRead := false.B
+      memWrite := false.B
+      aluOp := 0.U               // no ALU op needed
+      isVector := true.B
+    }
     is("b1100011".U){ // beq
       instructionType := InstructionType.BEQ
       isImmediate := true.B
@@ -230,9 +242,10 @@ class Processor extends Module {
       val imm11 = if_id.instruction(20)        // imm[11]
       val imm19_12 = if_id.instruction(19, 12) // imm[19:12]
       val _imm = Cat(imm20, imm19_12, imm11, imm10_1, 0.U(1.W)).asSInt()
-      val imm = Cat(Fill(11, _imm(12)), _imm).asSInt()
-      printf(p"Immediate value: ${imm}\n")
+      // J-type immediate is 21-bit signed; sign bit is imm[20] (instruction bit 31)
+      val imm = Cat(Fill(11, _imm(20)), _imm).asSInt()
       immediate := VecInit(Seq.fill(8)(imm))
+
       
   
   }.elsewhen(instructionType === InstructionType.VSTORE) {
@@ -255,7 +268,7 @@ class Processor extends Module {
     // x0 is hardwired to 0
     rs1_data := VecInit(Seq.fill(8)(0.S))
   }
-
+  
   when (!isImmediate || instructionType === InstructionType.BEQ) {
 
     when(rs2 >= 9.U) {
@@ -275,9 +288,7 @@ class Processor extends Module {
 
   }
   
-  when(instructionType === InstructionType.J) {
-    rs1_data := VecInit(Seq.fill(8)(pc))
-  }
+  // J does not require rs1_data; jump uses id_ex.immediate(0) in EX
   // .elsewhen(instructionType === InstructionType.BEQ) {
   //   rs1_data := VecInit(Seq.fill(8)(0.S))
   // }
@@ -300,12 +311,22 @@ class Processor extends Module {
     }
     vector_alu_result(i) := vectorALUs(i).out
   }
+  
+  // VSPLAT: broadcast rs1 lane[imm[2:0]] to all 8 lanes
+  when(id_ex.instructionType === InstructionType.VSPLAT) {
+    val laneSel = id_ex.immediate(0).asUInt()(2, 0)  // imm[2:0] = 0..7
+    val src = id_ex.rs1_data(laneSel)
+    for (i <- 0 until 8) {
+      vector_alu_result(i) := src
+    }
+  }
+
 
 
 
   val base_addr = vector_alu_result(0).asUInt()
   val dmem_addresses = Wire(Vec(8, UInt(32.W)))
-  val memSize = 1024
+  val memSize = 4096
   val addrWidth = log2Ceil(memSize)
   val base_word_index = id_ex.rs1_data(0).asUInt
   val imm_word_offset = id_ex.immediate(0).asUInt
