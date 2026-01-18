@@ -121,8 +121,37 @@ RISC-V-Basic-SIMD/
    - Generate custom assemblies using the script custom_assembler.py
 
      ```bash
-     python assembler.py <assembly_file> [-o <output_file>]
-     // use python3 for macOS
+     python3 custom_assembler.py [filename].s -o inst.hex
+     cp inst.hex ~/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+     python3 gen_data_hex.py /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+     cp data.hex /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/data.hex
+     ```
+     
+   - Generate baseline
+    ```bash
+     cd /Users/suniachiu/RISC-V-Basic-SIMD/c_baseline/app
+     make clean
+     make
+     
+     riscv64-unknown-elf-objcopy -O binary build/quiz3c.elf build/baseline.bin
+     python3 bin2hex.py build/baseline.bin inst.hex
+
+     cp inst.hex ~/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+
+     cd ~/RISC-V-Basic-SIMD
+     python3 gen_data_hex.py
+     cp data.hex src/main/resources/data.hex
+
+     sbt test
+     
+     riscv64-unknown-elf-objcopy -O binary build/quiz3c.elf build/baseline.bin
+     python3 bin2hex.py build/baseline.bin inst.hex
+     cp inst.hex ~/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+     cd ~/RISC-V-Basic-SIMD
+     python3 gen_data_hex.py /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/inst.hex
+     cp data.hex /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/data.hex
+     
+     sbt test
      ```
 
 ## Usage

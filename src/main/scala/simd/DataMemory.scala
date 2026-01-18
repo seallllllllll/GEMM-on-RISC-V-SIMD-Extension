@@ -22,6 +22,8 @@ class DataMemory(memSize: Int) extends Module {
 
   loadMemoryFromFile(mem, "./src/main/resources/data.hex")
   
+  
+  /*
   // debug read (asynchronous for Mem)
   io.dbgData := mem.read(io.dbgAddr)
 
@@ -43,6 +45,26 @@ class DataMemory(memSize: Int) extends Module {
       dataOutVec(i) := mem.read(io.addr(i))
     }
   }
-
   io.dataOut := dataOutVec
+  */
+  
+  // DataMemory.scala
+    val dataOutVec = Wire(Vec(8, SInt(32.W)))
+    dataOutVec := VecInit(Seq.fill(8)(0.S))
+
+    // debug read use apply
+    io.dbgData := mem(io.dbgAddr)
+
+    when(io.wen) {
+      for (i <- 0 until 8) {
+        mem.write(io.addr(i), io.dataIn(i))
+      }
+    }.elsewhen(io.ren) {
+      for (i <- 0 until 8) {
+        dataOutVec(i) := mem(io.addr(i))   // <-- use apply for async read
+      }
+    }
+
+    io.dataOut := dataOutVec
+
 }

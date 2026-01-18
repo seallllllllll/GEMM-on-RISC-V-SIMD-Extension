@@ -2,6 +2,11 @@ import re
 import sys
 
 INSTRUCTION_SET = {
+    "add": {"type": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000"},
+    "mul": {"type": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000001"},
+    "lw":  {"type": "I_MEM", "opcode": "0000011", "funct3": "010"},
+    "sw":  {"type": "S", "opcode": "0100011", "funct3": "010"},
+
     "addi": {"type": "I", "opcode": "0010011", "funct3": "000"},
     "vload": {"type": "I", "opcode": "1111111", "funct3": "000"}, 
     "vstore": {"type": "S", "opcode": "1000000", "funct3": "000"},
@@ -75,7 +80,7 @@ def encode_instruction(instruction, operands):
     # operands[1] = 16(x1) → offset = 16, base = x1
     # imm = 16 → 12-bit
     elif instr_type == "I" and instruction in ["vload"]:
-        offset, base = re.match(r"(\d+)\((x\d+)\)", operands[1]).groups()
+        offset, base = re.match(r"(-?\d+)\((x\d+)\)", operands[1]).groups()
         rd = encode_register(operands[0])
         rs1 = encode_register(base)
         imm = int(offset)
@@ -95,7 +100,7 @@ def encode_instruction(instruction, operands):
     # imm[11:5] rs2 rs1 funct3 imm[4:0] opcode S-type
     # ex: vstore
     elif instr_type == "S":
-        offset, base = re.match(r"(\d+)\((x\d+)\)", operands[1]).groups()
+        offset, base = re.match(r"(-?\d+)\((x\d+)\)", operands[1]).groups()
         rs1 = encode_register(base)
         rs2 = encode_register(operands[0])
         imm = int(offset)
@@ -131,7 +136,13 @@ def encode_instruction(instruction, operands):
         imm_low = imm_bin[9]
         imm_low2 = imm_bin[1:9]
         binary = f"{imm_high}{imm_mid}{imm_low}{imm_low2}{rd}{opcode}"
-
+    elif instr_type == "I_MEM":  # lw
+        offset, base = re.match(r"(-?\d+)\((x\d+)\)", operands[1]).groups()
+        rd = encode_register(operands[0])
+        rs1 = encode_register(base)
+        imm = int(offset)
+        imm_bin = to_signed_binary(imm, 12)
+        binary = f"{imm_bin}{rs1}{funct3}{rd}{opcode}"
 
     else:
         raise ValueError(f"Unsupported instruction type: {instr_type}")

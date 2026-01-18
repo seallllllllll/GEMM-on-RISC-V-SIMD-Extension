@@ -33,7 +33,7 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
       val rows = collection.mutable.ArrayBuffer[Seq[BigInt]]()
 
 
-        val maxCycles = 5000
+        val maxCycles = 200
         val stablePcThreshold = 8      // PC being same 8 times, then j 0 terminal loop
 
         var cycle = 0
@@ -183,7 +183,7 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
         // Register State after this cycle
         println("\nRegister State:")
         println("Scalar Registers (x1-x8):")
-        for (i <- 1 to 4) {
+        for (i <- 0 until 32) {
           println(s"x$i = ${c.io.debug.scalarRegs(i).peek().litValue}")
         }
         println("Vector Registers (x9-x31):")

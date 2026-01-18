@@ -6,6 +6,7 @@ import chisel3.util.log2Ceil
 
 
 class IF_ID extends Bundle {
+  val pc = SInt(32.W)
   val instruction = UInt(32.W)
 }
 
@@ -66,6 +67,11 @@ class Processor extends Module {
       val J      = 6.U(4.W)
       val NOP    = 7.U(4.W)
       val VSPLAT = 8.U(4.W)
+      val ADD    = 9.U(4.W)
+      val MUL    = 10.U(4.W)
+      val LW     = 11.U(4.W)
+      val SW     = 12.U(4.W)
+
   }
   
   val if_id = RegInit(0.U.asTypeOf(new IF_ID))
@@ -79,7 +85,7 @@ class Processor extends Module {
   val instructionType = WireDefault(InstructionType.NOP)
   
 
-  val scalarRegfile = Reg(Vec(9, SInt(32.W)))  // 9 elements (0-8)
+  val scalarRegfile = RegInit(VecInit(Seq.fill(32)(0.S(32.W))))
   val vectorRegfile = Mem(23, Vec(8, SInt(32.W))) // 23 vector registers (9-31)
 
 
@@ -131,6 +137,7 @@ class Processor extends Module {
         memRead := false.B
         memWrite := false.B
    }*/
+   /*
    is("b0110011".U) { // SIMD R-type (vadd / vmul)
       when(funct3 === "b111".U && funct7 === "b1111111".U) {
             instructionType := InstructionType.VADD
@@ -158,6 +165,52 @@ class Processor extends Module {
             isVector := false.B
           }
     }
+    */
+    is("b0110011".U) {
+      when(funct3 === "b111".U && funct7 === "b1111111".U) {
+          instructionType := InstructionType.VADD
+          isImmediate := false.B
+          aluOp := 5.U
+          regWrite := true.B
+          isVector := true.B
+          memRead := false.B
+          memWrite := false.B
+        }.elsewhen(funct3 === "b111".U && funct7 === "b1111110".U) {
+          instructionType := InstructionType.VMUL
+          isImmediate := false.B
+          aluOp := 6.U
+          regWrite := true.B
+          isVector := true.B
+          memRead := false.B
+          memWrite := false.B
+        }.elsewhen(funct3 === "b000".U && funct7 === "b0000000".U) {
+          instructionType := InstructionType.ADD
+          isImmediate := false.B
+          aluOp := 0.U
+          regWrite := true.B
+          isVector := false.B
+          memRead := false.B
+          memWrite := false.B
+        }.elsewhen(funct3 === "b000".U && funct7 === "b0000001".U) {
+          instructionType := InstructionType.MUL
+          isImmediate := false.B
+          aluOp := 6.U
+          regWrite := true.B
+          isVector := false.B
+          memRead := false.B
+          memWrite := false.B
+        }.otherwise {
+          instructionType := InstructionType.NOP
+          isImmediate := false.B
+          aluOp := 0.U
+          regWrite := false.B
+          isVector := false.B
+          memRead := false.B
+          memWrite := false.B
+        }
+    }
+
+
 
     is("b1000000".U) { // Custom opcode for vstore
       instructionType := InstructionType.VSTORE
@@ -213,6 +266,46 @@ class Processor extends Module {
       aluOp := 0.U
       isVector := false.B
     }
+    is("b0000011".U) { // lw
+      when(funct3 === "b010".U) {
+        instructionType := InstructionType.LW
+        isImmediate := true.B
+        aluOp := 0.U // use add : address = rs1 + imm
+        regWrite := true.B
+        isVector := false.B
+        memRead := true.B
+        memWrite := false.B
+      }.otherwise {
+          instructionType := InstructionType.NOP
+          isImmediate := false.B
+          aluOp := 0.U
+          regWrite := false.B
+          isVector := false.B
+          memRead := false.B
+          memWrite := false.B
+        }
+    }
+    is("b0100011".U) { // sw
+      when(funct3 === "b010".U) {
+        instructionType := InstructionType.SW
+        isImmediate := false.B
+        aluOp := 0.U // address = rs1 + immS
+        regWrite := false.B
+        isVector := false.B
+        memRead := false.B
+        memWrite := true.B
+      }.otherwise {
+          instructionType := InstructionType.NOP
+          isImmediate := false.B
+          aluOp := 0.U
+          regWrite := false.B
+          isVector := false.B
+          memRead := false.B
+          memWrite := false.B
+        }
+    }
+
+
   
   }
   
@@ -248,7 +341,7 @@ class Processor extends Module {
 
       
   
-  }.elsewhen(instructionType === InstructionType.VSTORE) {
+  }.elsewhen(instructionType === InstructionType.VSTORE || instructionType === InstructionType.SW) {
       // S-type immediate: imm[11:5]=inst[31:25], imm[4:0]=inst[11:7]
       val imm11_5 = if_id.instruction(31, 25)
       val imm4_0  = if_id.instruction(11, 7)
@@ -256,37 +349,26 @@ class Processor extends Module {
       val immS    = Cat(Fill(20, immS12(11)), immS12).asSInt // sign-extend to 32
       immediate := VecInit(Seq.fill(8)(immS))
     }
+    
+    // RS1 read logic: only treat x9..x31 as vector regs when isVector == true
+    when(rs1 >= 9.U && rs1 < 32.U && isVector) {
+      rs1_data := vectorRegfile(rs1 - 9.U)
+    }.elsewhen(rs1 > 0.U && rs1 < 32.U) {
+      rs1_data := VecInit(Seq.fill(8)(scalarRegfile(rs1)))
+    }.otherwise {
+      rs1_data := VecInit(Seq.fill(8)(0.S)) // x0
+    }
 
-  // RS1 read logic
-  when(rs1 >= 9.U) {
-    // Vector register read
-    rs1_data := vectorRegfile(rs1 - 9.U)
-  }.elsewhen(rs1 > 0.U && rs1 <= 8.U) {
-    // Scalar register read - replicate scalar value across vector
-    rs1_data := VecInit(Seq.fill(8)(scalarRegfile(rs1)))
-  }.otherwise {
-    // x0 is hardwired to 0
-    rs1_data := VecInit(Seq.fill(8)(0.S))
-  }
-  
-  when (!isImmediate || instructionType === InstructionType.BEQ) {
-
-    when(rs2 >= 9.U) {
-        // Vector register read
+    // RS2 read logic (only needed when instruction actually uses rs2)
+    when(!isImmediate || instructionType === InstructionType.BEQ || instructionType === InstructionType.SW || instructionType === InstructionType.VSTORE) {
+      when(rs2 >= 9.U && rs2 < 32.U && isVector) {
         rs2_data := vectorRegfile(rs2 - 9.U)
-      }.elsewhen(rs2 > 0.U && rs2 <= 8.U) {
-        // Scalar register read - replicate scalar value across vector
+      }.elsewhen(rs2 > 0.U && rs2 < 32.U) {
         rs2_data := VecInit(Seq.fill(8)(scalarRegfile(rs2)))
       }.otherwise {
-        // x0 is hardwired to 0
-        rs2_data := VecInit(Seq.fill(8)(0.S))
+        rs2_data := VecInit(Seq.fill(8)(0.S)) // x0
+      }
     }
- 
-  }.otherwise{
-
-    // immediate, do nothing with rs2
-
-  }
   
   // J does not require rs1_data; jump uses id_ex.immediate(0) in EX
   // .elsewhen(instructionType === InstructionType.BEQ) {
@@ -302,7 +384,7 @@ class Processor extends Module {
     vectorALUs(i).in1 := id_ex.rs1_data(i)
     when(id_ex.instructionType === InstructionType.BEQ){
       vectorALUs(i).in2 :=  id_ex.rs2_data(i)
-    } .elsewhen(id_ex.instructionType === InstructionType.VSTORE){
+    }.elsewhen(id_ex.instructionType === InstructionType.VSTORE || id_ex.instructionType === InstructionType.SW) {
       vectorALUs(i).in2 := id_ex.immediate(i)
     }.elsewhen (id_ex.isImmediate) {
       vectorALUs(i).in2 := id_ex.immediate(i)
@@ -323,7 +405,7 @@ class Processor extends Module {
 
 
 
-
+  /*
   val base_addr = vector_alu_result(0).asUInt()
   val dmem_addresses = Wire(Vec(8, UInt(32.W)))
   val memSize = 4096
@@ -344,6 +426,29 @@ class Processor extends Module {
   .otherwise {
     dmem_addresses := VecInit(Seq.fill(8)(0.U))
   }
+  */
+  
+  val memSize = 4096
+  val addrWidth = log2Ceil(memSize)
+  
+  val dmem_addresses = Wire(Vec(8, UInt(32.W)))
+    dmem_addresses := VecInit(Seq.fill(8)(0.U))
+
+    when(id_ex.memRead || id_ex.memWrite) {
+      when(id_ex.isVector) {
+        val base = vector_alu_result(0).asUInt()
+        for (i <- 0 until 8) {
+          dmem_addresses(i) := ((base >> 2) + i.U)(addrWidth-1, 0)
+        }
+      }.otherwise {
+        // scalar: address = (rs1 + imm) >> 2，所有 lane 用同一個 addr（DataMemory 不用改）
+        val base = vector_alu_result(0).asUInt()
+        val a = (base >> 2)(addrWidth-1, 0)
+        dmem_addresses := VecInit(Seq.fill(8)(a))
+      }
+    }
+    ex_mem.dmem_addresses := dmem_addresses
+
 
 
 
@@ -438,7 +543,9 @@ when(ex_mem.memWrite) {
   // }
 
 
+  if_id.pc := pc
   if_id.instruction := instruction
+
 
 
   id_ex.rd := rd
@@ -518,6 +625,18 @@ when(ex_mem.memWrite) {
 val branch_taken = Wire(Bool())
 branch_taken := false.B
 
+val nextPc = WireDefault(pc + 4.S)
+
+when(instructionType === InstructionType.J) {
+  nextPc := if_id.pc + immediate(0)
+}.elsewhen(instructionType === InstructionType.BEQ && rs1_data(0) === rs2_data(0)) {
+  nextPc := if_id.pc + immediate(0)
+}
+
+pc := nextPc
+
+
+/*
 when(id_ex.instructionType === InstructionType.J) {
   branch_taken := true.B
   printf(p"Branch taken\n")
@@ -529,6 +648,7 @@ when(id_ex.instructionType === InstructionType.J) {
 }.otherwise {
   pc := pc + 4.S
 }
+*/
   
 
 }
