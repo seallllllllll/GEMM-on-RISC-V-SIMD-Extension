@@ -33,7 +33,7 @@ class ProcessorTester extends AnyFlatSpec with ChiselScalatestTester {
       val rows = collection.mutable.ArrayBuffer[Seq[BigInt]]()
 
 
-        val maxCycles = 200
+        val maxCycles = 200000
         val stablePcThreshold = 8      // PC being same 8 times, then j 0 terminal loop
 
         var cycle = 0

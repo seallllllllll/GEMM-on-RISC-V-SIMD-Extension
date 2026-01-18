@@ -454,8 +454,6 @@ class Processor extends Module {
 
 
   // Memory stage
-
-
   dataMemory.io.wen := false.B // Default value
   dataMemory.io.ren := false.B // Default value
   dataMemory.io.dataIn := VecInit(Seq.fill(8)(0.S))
@@ -543,17 +541,16 @@ when(ex_mem.memWrite) {
   // }
 
 
-  if_id.pc := pc
-  if_id.instruction := instruction
+  val isJump = instructionType === InstructionType.J
+  val isBeqTaken = instructionType === InstructionType.BEQ && rs1_data(0) === rs2_data(0)
+  val flush = isJump || isBeqTaken
 
-
+  // ---------------------------------------------------------
+  // ID/EX Register Assignment Logic
+  // ---------------------------------------------------------
 
   id_ex.rd := rd
-  id_ex.rs1_data := rs1_data
-  id_ex.rs2_data := rs2_data
-  id_ex.immediate := immediate
   id_ex.instructionType := instructionType
-  id_ex.rd := rd
   id_ex.opcode := opcode
   id_ex.memRead := memRead
   id_ex.memWrite := memWrite
@@ -561,6 +558,17 @@ when(ex_mem.memWrite) {
   id_ex.isVector := isVector
   id_ex.aluOp := aluOp
   id_ex.isImmediate := isImmediate
+  id_ex.rs2_data := rs2_data
+
+  when(instructionType === InstructionType.J) {
+    // PC + 4
+    id_ex.rs1_data := VecInit(Seq.fill(8)(if_id.pc))
+    id_ex.immediate := VecInit(Seq.fill(8)(4.S))
+  } .otherwise {
+    // others
+    id_ex.rs1_data := rs1_data
+    id_ex.immediate := immediate
+  }
 
   ex_mem.rd := id_ex.rd
   ex_mem.alu_result := vector_alu_result
@@ -622,33 +630,42 @@ when(ex_mem.memWrite) {
   io.debug.vectorRegs := vectorRegsDebug
 
 
-val branch_taken = Wire(Bool())
-branch_taken := false.B
+    // PC Update Logic
+    val nextPc = WireDefault(pc + 4.S)
 
-val nextPc = WireDefault(pc + 4.S)
+    when(instructionType === InstructionType.J) {
+      nextPc := if_id.pc + immediate(0)
+    }.elsewhen(instructionType === InstructionType.BEQ && rs1_data(0) === rs2_data(0)) {
+      nextPc := if_id.pc + immediate(0)
+    }
 
-when(instructionType === InstructionType.J) {
-  nextPc := if_id.pc + immediate(0)
-}.elsewhen(instructionType === InstructionType.BEQ && rs1_data(0) === rs2_data(0)) {
-  nextPc := if_id.pc + immediate(0)
-}
+    pc := nextPc
+    
+    // ---------------------------------------------------------
+    // IF/ID Pipeline Register Update
+    // ---------------------------------------------------------
+    if_id.pc := pc
+    
+    when(flush) {
+      // J or BEQ taken >> Bubble
+      if_id.instruction := "h0000002a".U // NOP
+    } .otherwise {
+      if_id.instruction := instruction
+    }
 
-pc := nextPc
-
-
-/*
-when(id_ex.instructionType === InstructionType.J) {
-  branch_taken := true.B
-  printf(p"Branch taken\n")
-  pc := pc + id_ex.immediate(0)
-}.elsewhen(id_ex.instructionType === InstructionType.BEQ && id_ex.rs1_data(0) === id_ex.rs2_data(0)) {
-  branch_taken := true.B 
-  printf(p"Branch taken\n")
-  pc := pc + id_ex.immediate(0)
-}.otherwise {
-  pc := pc + 4.S
-}
-*/
+    /*
+    when(id_ex.instructionType === InstructionType.J) {
+      branch_taken := true.B
+      printf(p"Branch taken\n")
+      pc := pc + id_ex.immediate(0)
+    }.elsewhen(id_ex.instructionType === InstructionType.BEQ && id_ex.rs1_data(0) === id_ex.rs2_data(0)) {
+      branch_taken := true.B
+      printf(p"Branch taken\n")
+      pc := pc + id_ex.immediate(0)
+    }.otherwise {
+      pc := pc + 4.S
+    }
+    */
   
 
 }

@@ -11,7 +11,6 @@ addi x14, x0, 8       # N=8
 nop
 nop
 nop
-nop
 
 add  x15, x1, x0      # A_row_ptr
 add  x16, x3, x0      # C_row_ptr
@@ -20,10 +19,9 @@ addi x4, x0, 0        # i=0
 nop
 nop
 nop
-nop
 
-# i_loop @ PC=0x2c
-beq  x4, x14, 260     # to done @ PC=0x110
+# i_loop
+beq  x4, x14, 248
 
 add  x17, x2, x0      # B_col_ptr = B_base + j*4 (j starts 0)
 add  x18, x16, x0     # C_ptr     = C_row_ptr + j*4
@@ -32,13 +30,11 @@ addi x5, x0, 0        # j=0
 nop
 nop
 nop
-nop
 
-# j_loop @ PC=0x4c
-beq  x5, x14, 196     # to next_i @ PC=0x0f0
+# j_loop
+beq  x5, x14, 188     # to next_i
 
 addi x7, x0, 0        # acc=0
-nop
 nop
 nop
 nop
@@ -50,10 +46,9 @@ addi x6, x0, 0        # k=0
 nop
 nop
 nop
-nop
 
-# k_loop @ PC=0x70
-beq  x6, x14, 100       # to k_done @ PC=0x0c4
+# k_loop
+beq  x6, x14, 100       # to k_done
 
 lw   x8, 0(x19)       # a = A[i][k]
 nop
@@ -82,9 +77,8 @@ addi x6, x6, 1        # k++
 nop
 nop
 nop
-nop
 
-j    -96              # back to k_loop @ PC=0x70
+j    -92              # back to k_loop
 nop
 
 # k_done @ PC=0x0c4
@@ -98,9 +92,8 @@ addi x18, x18, 4      # C_ptr     += 4
 nop
 nop
 nop
-nop
 
-j    -192             # back to j_loop @ PC=0x4c
+j    -180             # back to j_loop
 nop
 
 # next_i @ PC=0x0f0
@@ -110,9 +103,8 @@ addi x16, x16, 32     # C_row_ptr += 32
 nop
 nop
 nop
-nop
 
-j    -256             # back to i_loop @ PC=0x2c
+j    -240             # back to i_loop
 nop
 # done @ PC=0x110
 j 0                   # terminal loop
