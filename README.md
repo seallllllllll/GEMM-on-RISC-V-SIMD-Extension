@@ -1,69 +1,55 @@
 # RISC-V Basic SIMD
 
+
 ## Overview
 
-This project implements a custom fixed-width SIMD extension on top of a 32-bit
-RISC-V 5-stage pipelined processor and uses it as an experimental platform to
-study **GEMM (General Matrix Multiply) acceleration using packed-SIMD
-techniques**.
+This project evaluates **GEMM (General Matrix Multiplication) acceleration** on a simple 32-bit RISC-V processor extended with a **custom fixed-width packed-SIMD architecture**. The processor is a 5-stage in-order pipeline, and the SIMD extension provides **8 lanes of 32-bit integer execution** through explicit software-managed vector operations.
 
-The primary objective is **not** to build a full-featured vector ISA (e.g. RVV),
-but to evaluate how a small, non-scalable SIMD design (8 lanes × 32-bit) can
-improve the performance of GEMM compared to a scalar baseline.
+Rather than designing a full-featured or scalable vector ISA (such as RVV), this project focuses on **understanding and exploiting data-level parallelism** using a small, non-scalable SIMD model. This design serves as a controlled experimental platform for studying how packed-SIMD techniques affect GEMM performance relative to a scalar baseline.
 
 The project follows a structured workflow:
 
-1. Establish a **scalar GEMM baseline** for correctness and cycle count reference
-2. Understand and validate the provided **custom SIMD ISA**
-3. Implement a **naive SIMD GEMM** by vectorizing the inner loop
-4. Apply **SIMD-specific optimizations** (register blocking, unrolling, scheduling)
-5. Measure and analyze **cycle-level performance gains**
-
+1. Establish a **scalar GEMM baseline** for correctness and cycle-count reference
+2. Understand and validate the provided **custom SIMD execution model**
+3. Implement a **naive SIMD GEMM** by vectorizing the inner loop across output columns
+4. Apply **SIMD-specific optimizations**, including register blocking and instruction scheduling
+5. Measure and analyze **cycle-level performance improvements** across all implementations
 
 ## Project Structure
 
 
 ```
 RISC-V-Basic-SIMD/
-├── build.sbt                     # SBT build configuration
-├── README.md                     # Project documentation
-├── custom_assembler.py           # Python-based custom assembler for SIMD instructions
-├── gen_data_hex.py               # Generate data.hex for memory initialization
-├── inst.hex                      # Instruction memory image
-├── data.hex                      # Data memory image
-├── golden_C.hex                  # Golden reference output for GEMM verification
+├── README.md                # Project documentation
 │
-├── src/
+├── scalar_baseline.s        # Hand-written scalar GEMM baseline (assembly)
+├── gemm_naive.s             # Naive SIMD GEMM (1×8 mapping)
+├── gemm_optimized.s         # Optimized SIMD GEMM (register blocking, scheduling)
+│
+├── scalar_baseline.c        # C reference GEMM (functional golden model only)
+│
+├── custom_assembler.py      # Customized assembler with SIMD instruction support
+├── gen_data_hex.py          # Data memory image generator
+│
+├── inst.hex                 # Instruction memory image generated from .s files
+├── data.hex                 # Data memory initialization image (A, B, C)
+├── golden_C.hex             # Golden reference output for correctness checking
+│
+├── src/                     # Chisel implementation of the processor
 │   ├── main/
-│   │   ├── resources/
-│   │   │   ├── inst.hex           # Instruction Memory (used by simulator)
-│   │   │   └── data.hex           # Data Memory (used by simulator)
 │   │   └── scala/
+│   │       ├── Processor.scala
 │   │       ├── ALU.scala
 │   │       ├── DataMemory.scala
-│   │       ├── DebugModule.scala
-│   │       ├── InstructionMemoryLoader.scala
-│   │       └── Processor.scala
+│   │       └── DebugModule.scala
 │   └── test/
-│       └── ProcessorTester.scala  # Scala testbench
+│       └── ProcessorTester.scala
 │
-├── project/                      # SBT project metadata
-├── target/                       # SBT build outputs
-├── test_run_dir/                 # Simulation / test outputs
-│
-├── add8x8.s                      # SIMD vector add example
-├── add8x8v2.s                    # Alternative SIMD add version
-├── mul8x8.s                      # SIMD vector multiply example
-├── mul8x8v2.s                    # Optimized SIMD multiply
-├── mul_test.s                    # Scalar / SIMD multiply test
-├── inst.s                        # Instruction test program
-├── inst3vecadd.s                 # Vector add test
-├── branchadd.s                   # Branch + add test
-├── jumpadd.s                     # Jump test
-├── simpleadd.s                   # Simple scalar add
-├── simplebranchjump.s            # Simple branch/jump test
-├── scalarquivalent.s             # Scalar-equivalent reference code
-└── out.hex                       # Output dump (debug / test)
+├── project/                 # sbt project configuration
+├── build.sbt                # sbt build file
+├── test_run_dir/            # Simulation outputs
+└── target/                  # sbt build artifacts
+
 ```
 
 - **src/main**: Chisel implementation of the scalar + SIMD processor, memory
@@ -126,33 +112,7 @@ RISC-V-Basic-SIMD/
      python3 gen_data_hex.py /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/inst.hex
      cp data.hex /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/data.hex
      ```
-     
-   - Generate baseline
-    ```bash
-     cd /Users/suniachiu/RISC-V-Basic-SIMD/c_baseline/app
-     make clean
-     make
-     
-     riscv64-unknown-elf-objcopy -O binary build/quiz3c.elf build/baseline.bin
-     python3 bin2hex.py build/baseline.bin inst.hex
 
-     cp inst.hex ~/RISC-V-Basic-SIMD/src/main/resources/inst.hex
-
-     cd ~/RISC-V-Basic-SIMD
-     python3 gen_data_hex.py
-     cp data.hex src/main/resources/data.hex
-
-     sbt test
-     
-     riscv64-unknown-elf-objcopy -O binary build/quiz3c.elf build/baseline.bin
-     python3 bin2hex.py build/baseline.bin inst.hex
-     cp inst.hex ~/RISC-V-Basic-SIMD/src/main/resources/inst.hex
-     cd ~/RISC-V-Basic-SIMD
-     python3 gen_data_hex.py /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/inst.hex
-     cp data.hex /Users/suniachiu/RISC-V-Basic-SIMD/src/main/resources/data.hex
-     
-     sbt test
-     ```
 
 ## Usage
 
@@ -171,23 +131,22 @@ Typical workflow:
 
 ## Example Demonstration
 
-Simple Vector Addition
+### SIMD GEMM Correctness Verification
 
-### Input Vectors:
-```
-Vector A = [1, 2, 3, 4, 5, 6, 7, 8]
-Vector B = [8, 7, 6, 5, 4, 3, 2, 1]
-```
+To demonstrate the functionality of the custom SIMD extension in a realistic
+workload, the project evaluates an 8×8 integer GEMM kernel implemented in
+hand-written RISC-V assembly.
 
-### SIMD Operation:
-- Perform the `vadd` operation on the corresponding elements of the vectors.
+For correctness verification, matrix A is initialized as the identity matrix,
+and matrix B is initialized with a fixed 8×8 test pattern. Under this setup, the
+expected result is:
 
-### Expected Output:
-```
-Result = [9, 9, 9, 9, 9, 9, 9, 9]
-```
+C = A × B = B
 
-## Contributing
+After program execution, the computed result matrix C is read back from data
+memory and compared element-wise against a golden reference (`golden_C.hex`)
+using the provided testbench.
 
-Do whatever you like! Maybe tag/mention me!
+Successful execution confirms correct SIMD instruction execution, memory access,
+and register aliasing behavior prior to performance evaluation.
 
